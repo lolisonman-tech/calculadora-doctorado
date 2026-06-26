@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora de matrícula · Escuela de Doctorado · UMU</title>
+<!--
+  Fuente: EB Garamond (serif display, idéntica a la del logotipo EIDUM)
+  Solo se carga el peso 400 y 600 para no penalizar rendimiento.
+  Si Liferay bloquea Google Fonts, la serif de sistema actúa de fallback.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* ── Scoped reset ───────────────────────────────────────────── */
+.ecalc *, .ecalc *::before, .ecalc *::after {
+  box-sizing: border-box; margin: 0; padding: 0;
+}
+
+/* ── Tokens de marca EIDUM (Manual de Marca Junio 2024) ────────
+   Rojo primario:   #E03B23  (Pantone Warm Red C)
+   Azul oscuro:     #002028  (Pantone 309 C)
+   Warm gray:       #EDE9E3  (Pantone Warm Gray 1C)
+   Blanco:          #FFFFFF
+   Serif display:   EB Garamond (equivalente al logotipo)
+   Sans UI:         system-ui stack
+   ──────────────────────────────────────────────────────────── */
+.ecalc {
+  --rojo:      #E03B23;
+  --rojo-osc:  #B82D18;
+  --rojo-cl:   #FAEAE7;
+  --rojo-t:    #FDF3F1;
+  --azul:      #002028;
+  --azul-med:  #003040;
+  --gris:      #EDE9E3;
+  --gris-b:    #DDD9D2;
+  --blanco:    #FFFFFF;
+  --txt:       #1A1208;
+  --txt-s:     #4A4038;
+  --txt-t:     #8A7F74;
+  --verde:     #1A5C30;
+  --verde-bg:  #E6F2EB;
+  --ambar:     #6B4800;
+  --ambar-bg:  #FDF3DC;
+  --r-sm: 4px;
+  --r-md: 16px;
+  --r-lg: 20px;
+  --f-serif: 'EB Garamond', Georgia, 'Times New Roman', serif;
+  --f-sans:  -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  font-family: var(--f-sans);
+  font-size: 14px;
+  color: var(--txt);
+  line-height: 1.5;
+  max-width: 760px;
+  background: var(--gris);
+}
+
+/* ── Cabecera ───────────────────────────────────────────────── */
+.ecalc .ec-hd {
+  background: var(--rojo);
+  color: #fff;
+  padding: 24px 28px 20px;
+  position: relative;
+  overflow: hidden;
+}
+/* Línea vertical decorativa — eco del símbolo con barras verticales */
+.ecalc .ec-hd::before {
+  content: '';
+  position: absolute; right: 24px; top: 0; bottom: 0;
+  width: 1px; background: rgba(255,255,255,.18);
+  box-shadow: 8px 0 0 rgba(255,255,255,.10),
+              18px 0 0 rgba(255,255,255,.07),
+              30px 0 0 rgba(255,255,255,.05);
+}
+.ecalc .ec-hd .eyebrow {
+  font-family: var(--f-sans);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: .14em; text-transform: uppercase;
+  opacity: .72; margin-bottom: 6px;
+}
+.ecalc .ec-hd h2 {
+  font-family: var(--f-serif);
+  font-size: 26px; font-weight: 400;
+  line-height: 1.2; margin-bottom: 4px;
+  letter-spacing: -.01em;
+}
+.ecalc .ec-hd p {
+  font-family: var(--f-sans);
+  font-size: 12px; opacity: .72;
+}
+
+/* ── Cuerpo: 2 columnas ─────────────────────────────────────── */
+.ecalc .ec-body {
+  background: var(--blanco);
+  border: 1px solid var(--gris-b); border-top: none;
+  display: grid;
+  grid-template-columns: 1fr 288px;
+  grid-template-rows: 1fr auto;
+  grid-template-areas: "form result" "btn btn";
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+  overflow: hidden;
+}
+@media (max-width: 620px) {
+  .ecalc .ec-body {
+    grid-template-columns: 1fr;
+    grid-template-areas: "form" "result" "btn";
+  }
+  .ecalc .ec-result { border-left: none !important; border-top: 1px solid var(--gris-b); }
+  .ecalc .ec-total-box { border-radius: 0; }
+  .ecalc .ec-btn-wrap { border-radius: 0 0 var(--r-lg) var(--r-lg); }
+  .ecalc .ec-hd h2 { font-size: 22px; }
+  .ecalc .ec-comp-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Formulario ─────────────────────────────────────────────── */
+.ecalc .ec-form { border-right: 1px solid var(--gris-b); min-width: 0; grid-area: form; }
+
+.ecalc .ec-block { padding: 16px 20px; border-bottom: 1px solid var(--gris); }
+.ecalc .ec-block:last-of-type { border-bottom: none; }
+
+.ecalc .ec-block-title {
+  font-family: var(--f-serif);
+  font-size: 15px; font-weight: 400;
+  color: var(--azul);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--gris-b);
+  display: flex; align-items: center; gap: 8px;
+  letter-spacing: .01em;
+}
+/* Punto rojo — eco del color primario EIDUM */
+.ecalc .ec-block-title::before {
+  content: '';
+  display: block; flex-shrink: 0;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--rojo);
+}
+
+/* Controles */
+.ecalc .ec-row { margin-bottom: 10px; }
+.ecalc .ec-row:last-child { margin-bottom: 0; }
+.ecalc label.ec-lbl {
+  display: block; font-size: 11.5px; font-weight: 600;
+  color: var(--txt-s); margin-bottom: 4px;
+  text-transform: uppercase; letter-spacing: .05em;
+}
+.ecalc label.ec-lbl small {
+  font-weight: 400; color: var(--txt-t);
+  text-transform: none; letter-spacing: 0; margin-left: 4px;
+}
+
+.ecalc select,
+.ecalc input[type="number"] {
+  width: 100%; padding: 8px 11px;
+  border: 1px solid var(--gris-b); border-radius: var(--r-sm);
+  font-size: 13px; font-family: var(--f-sans);
+  color: var(--txt); background: var(--blanco);
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238A7F74' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+  transition: border-color .15s;
+}
+.ecalc select:focus,
+.ecalc input[type="number"]:focus {
+  outline: none; border-color: var(--rojo);
+  box-shadow: 0 0 0 2px rgba(224,59,35,.12);
+}
+.ecalc input[type="number"] { background-image: none; padding-right: 11px; }
+
+/* Grid créditos */
+.ecalc .ec-comp-grid {
+  display: grid; grid-template-columns: 1fr 96px; gap: 8px; align-items: end;
+}
+@media (max-width: 400px) { .ecalc .ec-comp-grid { grid-template-columns: 1fr; } }
+
+/* Precio/ECTS badge */
+.ecalc .ec-ects-badge {
+  border: 1px solid var(--gris-b); border-radius: var(--r-sm);
+  height: 36px; display: flex; align-items: center; justify-content: flex-end;
+  padding: 0 10px;
+  font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--rojo); background: var(--rojo-t);
+}
+
+/* Preview subtotal complementos */
+.ecalc .ec-comp-preview {
+  margin-top: 8px; padding: 8px 12px;
+  background: var(--gris); border: 1px solid var(--gris-b);
+  border-radius: var(--r-md);
+  display: none; align-items: baseline;
+  justify-content: space-between; gap: 8px;
+}
+.ecalc .ec-comp-preview .cp-lbl { font-size: 12px; color: var(--txt-s); }
+.ecalc .ec-comp-preview .cp-val {
+  font-family: var(--f-serif); font-size: 17px;
+  font-weight: 600; color: var(--rojo); white-space: nowrap;
+}
+
+/* Aviso info */
+.ecalc .ec-info {
+  margin-top: 8px; padding: 8px 12px;
+  background: var(--rojo-cl); border-left: 3px solid var(--rojo);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+  font-size: 12px; color: var(--rojo-osc);
+  line-height: 1.5;
+}
+
+/* Checkboxes */
+.ecalc .ec-checks { display: flex; flex-direction: column; gap: 5px; }
+.ecalc .ec-chk {
+  display: flex; align-items: flex-start; gap: 9px;
+  padding: 7px 10px;
+  border: 1px solid var(--gris-b); border-radius: var(--r-md);
+  cursor: pointer; transition: border-color .12s, background .12s;
+}
+.ecalc .ec-chk:hover { border-color: var(--rojo); background: var(--rojo-t); }
+.ecalc .ec-chk input[type="checkbox"] {
+  margin-top: 2px; accent-color: var(--rojo);
+  width: 13px; height: 13px; flex-shrink: 0; cursor: pointer;
+}
+.ecalc .ec-chk-main { font-size: 12.5px; font-weight: 500; display: block; }
+.ecalc .ec-chk-sub  { font-size: 11px; color: var(--txt-t); display: block; margin-top: 1px; }
+
+/* Sección complementos oculta por defecto */
+.ecalc #ec-sec-comp { display: none; }
+
+/* Botón */
+.ecalc .ec-btn-wrap {
+  padding: 16px 24px 22px; border-top: 2px solid var(--gris-b);
+  background: var(--gris);
+  grid-area: btn;
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+}
+.ecalc .ec-btn {
+  width: 100%; padding: 11px 16px;
+  background: var(--rojo); color: #fff;
+  font-family: var(--f-serif); font-size: 16px; font-weight: 400;
+  letter-spacing: .02em;
+  border: none; border-radius: var(--r);
+  cursor: pointer; transition: background .15s;
+  border-radius: var(--r-md);
+}
+.ecalc .ec-btn:hover { background: var(--rojo-osc); }
+.ecalc .ec-btn:active { transform: scale(.99); }
+
+/* ── Resultado ──────────────────────────────────────────────── */
+.ecalc .ec-result { display: flex; flex-direction: column; min-width: 0; grid-area: result; }
+
+.ecalc .ec-total-box {
+  background: var(--azul); color: #fff;
+  padding: 20px 20px 16px; flex-shrink: 0;
+  border-radius: var(--r-lg) 0 0 0;
+}
+.ecalc .ec-total-box .lbl {
+  font-family: var(--f-sans);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: .12em; text-transform: uppercase;
+  opacity: .6; margin-bottom: 5px;
+}
+.ecalc .ec-total-num {
+  font-family: var(--f-serif);
+  font-size: 40px; font-weight: 400; line-height: 1;
+  letter-spacing: -.02em; color: #fff;
+}
+.ecalc .ec-total-num .euro {
+  font-size: 18px; vertical-align: super; margin-right: 2px;
+  color: var(--rojo); /* el euro en rojo EIDUM sobre el azul oscuro */
+}
+.ecalc .ec-total-sub {
+  font-family: var(--f-sans);
+  font-size: 11px; opacity: .55; margin-top: 5px;
+}
+
+/* Placeholder */
+.ecalc .ec-ph {
+  flex: 1; padding: 28px 20px; text-align: center;
+  color: var(--txt-t); background: var(--blanco);
+}
+.ecalc .ec-ph .ico {
+  display: block;
+  font-family: var(--f-serif); font-size: 32px;
+  color: var(--rojo); opacity: .35; margin-bottom: 10px;
+  letter-spacing: -.02em;
+}
+.ecalc .ec-ph p { font-size: 12.5px; line-height: 1.6; }
+
+/* Desglose */
+.ecalc .ec-desglose { flex: 1; background: var(--blanco); }
+.ecalc .dsg-list { list-style: none; }
+.ecalc .dsg-list li {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 8px 16px; font-size: 12.5px;
+  border-bottom: 1px solid var(--gris); gap: 8px;
+}
+.ecalc .dsg-list li:last-child { border-bottom: none; }
+.ecalc .dsg-list li .dl { color: var(--txt-s); flex: 1; min-width: 0; }
+.ecalc .dsg-list li .dr {
+  font-weight: 600; white-space: nowrap; color: var(--txt);
+  font-variant-numeric: tabular-nums;
+}
+.ecalc .dsg-list li.bonif  { background: var(--verde-bg); }
+.ecalc .dsg-list li.bonif .dl,
+.ecalc .dsg-list li.bonif .dr { color: var(--verde); }
+.ecalc .dsg-list li.av-row   { background: var(--ambar-bg); }
+.ecalc .dsg-list li.av-row .dl { font-size: 11.5px; color: var(--ambar); }
+.ecalc .dsg-list li.info-row { background: var(--rojo-cl); }
+.ecalc .dsg-list li.info-row .dl { font-size: 11.5px; color: var(--rojo-osc); line-height: 1.5; }
+.ecalc .dsg-list li.info-tot { background: var(--gris); border-top: 1px solid var(--gris-b); }
+.ecalc .dsg-list li.info-tot .dl { font-size: 11px; color: var(--txt-t); font-style: italic; line-height: 1.55; }
+.ecalc .dsg-list li.tot {
+  background: var(--azul); padding: 10px 16px;
+  border-radius: 0 0 var(--r-md) var(--r-md);
+  overflow: hidden;
+}
+.ecalc .dsg-list li.tot .dl {
+  font-family: var(--f-serif); font-size: 14px; font-weight: 400;
+  color: rgba(255,255,255,.7); letter-spacing: .01em;
+}
+.ecalc .dsg-list li.tot .dr {
+  font-family: var(--f-serif); font-size: 18px; font-weight: 400;
+  color: #fff;
+}
+
+/* Fraccionamiento */
+.ecalc .ec-frac {
+  border-top: 1px solid var(--gris-b);
+  padding: 12px 16px; background: var(--gris);
+  border-radius: 0 0 var(--r-lg) 0;
+}
+.ecalc .ec-frac h4 {
+  font-family: var(--f-sans);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: .10em; text-transform: uppercase;
+  color: var(--txt-t); margin-bottom: 8px;
+}
+.ecalc .frac-pills { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; }
+.ecalc .fp {
+  min-width: 54px; background: var(--blanco);
+  border: 1px solid var(--gris-b); border-radius: var(--r-md);
+  padding: 5px 7px; text-align: center; flex-shrink: 0;
+}
+.ecalc .fp-v {
+  font-family: var(--f-serif);
+  font-size: 11px; font-weight: 600; color: var(--rojo);
+  white-space: nowrap;
+}
+.ecalc .fp-m { font-size: 9px; color: var(--txt-t); text-transform: uppercase; letter-spacing: .05em; }
+.ecalc .frac-nota { font-size: 10.5px; color: var(--txt-t); margin-top: 7px; line-height: 1.5; }
+
+/* Nota legal */
+.ecalc .ec-legal {
+  padding: 10px 20px 14px;
+  border: 1px solid var(--gris-b); border-top: none;
+  background: var(--gris);
+  font-size: 11px; color: var(--txt-t); line-height: 1.65;
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+}
+.ecalc .ec-legal a { color: var(--rojo-osc); text-decoration: none; }
+.ecalc .ec-legal a:hover { text-decoration: underline; }
+</style>
+
+<!-- ════════════════════════════════════════════════════
+     CALCULADORA MATRÍCULA DOCTORADO · EIDUM · UMU
+     Identidad visual: Manual de Marca EIDUM, Junio 2024
+     Compatibilidad: Liferay (IIFE, IDs prefijados ec-)
+     ════════════════════════════════════════════════════ -->
+<div class="ecalc" id="ecalc-root">
+
+  <!-- Cabecera -->
+  <div class="ec-hd">
+    <div class="eyebrow">Escuela Internacional de Doctorado &middot; Universidad de Murcia</div>
+    <h2>Calculadora de matr&iacute;cula</h2>
+    <p>Curso 2026/2027 &middot; Precios seg&uacute;n Decreto n.&ordm;&nbsp;8/2024 de la CARM</p>
+  </div>
+
+  <!-- Cuerpo -->
+  <div class="ec-body">
+
+    <!-- ══ FORMULARIO ══ -->
+    <div class="ec-form">
+
+      <!-- 1. Tipo -->
+      <div class="ec-block">
+        <div class="ec-block-title">Tipo de matr&iacute;cula</div>
+        <div class="ec-row">
+          <label class="ec-lbl" for="ec-tipo">&iquest;Qu&eacute; quieres matricular este curso?</label>
+          <select id="ec-tipo">
+            <option value="">&mdash; Selecciona &mdash;</option>
+            <option value="tutela">Tutela acad&eacute;mica (matr&iacute;cula anual ordinaria)</option>
+            <option value="defensa">Defensa de tesis doctoral</option>
+            <option value="complementos">Solo complementos formativos espec&iacute;ficos</option>
+            <option value="tc">Tutela acad&eacute;mica + complementos formativos</option>
+          </select>
+          <div class="ec-info" id="ec-av-tipo" style="display:none"></div>
+        </div>
+      </div>
+
+      <!-- 2. Complementos (condicional) -->
+      <div class="ec-block" id="ec-sec-comp">
+        <div class="ec-block-title">Complementos formativos</div>
+        <div class="ec-row">
+          <label class="ec-lbl" for="ec-exp">Tipo de m&aacute;ster al que pertenecen</label>
+          <select id="ec-exp">
+            <option value="">&mdash; Selecciona el tipo de m&aacute;ster &mdash;</option>
+            <option value="hab_prl">Habilitante &mdash; Profesorado / Prev. Riesgos Laborales</option>
+            <option value="hab_abo">Habilitante &mdash; Abogac&iacute;a / Psicolog&iacute;a Gral. Sanitaria</option>
+            <option value="stem_hab">STEM habilitante (Arquitectura, Ingenier&iacute;as reguladas&hellip;)</option>
+            <option value="stem_no">STEM no habilitante / Biling&uuml;e</option>
+            <option value="no_hab">No habilitante general</option>
+            <option value="esp_exp">Especial experimentalidad</option>
+            <option value="esp_cos">Especial coste</option>
+          </select>
+        </div>
+        <div class="ec-comp-grid ec-row">
+          <div>
+            <label class="ec-lbl" for="ec-ects">N&uacute;mero de cr&eacute;ditos ECTS <small>(m&aacute;x.&nbsp;60)</small></label>
+            <input type="number" id="ec-ects" min="1" max="60" placeholder="Ej: 12">
+          </div>
+          <div>
+            <label class="ec-lbl">Precio/ECTS</label>
+            <div class="ec-ects-badge" id="ec-precio-ects">&mdash;</div>
+          </div>
+        </div>
+        <div class="ec-comp-preview" id="ec-comp-preview">
+          <span class="cp-lbl" id="ec-comp-preview-label">Subtotal complementos</span>
+          <span class="cp-val" id="ec-comp-preview-val">&mdash;</span>
+        </div>
+      </div>
+
+      <!-- 3. Situación académica -->
+      <div class="ec-block">
+        <div class="ec-block-title">Situaci&oacute;n acad&eacute;mica</div>
+        <div class="ec-checks">
+          <label class="ec-chk">
+            <input type="checkbox" id="ec-nuevo">
+            <span>
+              <span class="ec-chk-main">Primera matr&iacute;cula en el programa</span>
+              <span class="ec-chk-sub">Apertura de expediente: 46,12&nbsp;&euro; (en vez de 18,00&nbsp;&euro;)</span>
+            </span>
+          </label>
+          <label class="ec-chk">
+            <input type="checkbox" id="ec-menor28">
+            <span>
+              <span class="ec-chk-main">Menor de 28 a&ntilde;os</span>
+              <span class="ec-chk-sub">Seguro escolar obligatorio: +1,12&nbsp;&euro;</span>
+            </span>
+          </label>
+          <label class="ec-chk">
+            <input type="checkbox" id="ec-extran">
+            <span>
+              <span class="ec-chk-main">Extranjero/a no comunitario/a no residente</span>
+              <span class="ec-chk-sub">Recargo del +20&nbsp;% sobre cr&eacute;ditos de complementos</span>
+            </span>
+          </label>
+          <label class="ec-chk">
+            <input type="checkbox" id="ec-cotutela">
+            <span>
+              <span class="ec-chk-main">R&eacute;gimen de cotutela internacional</span>
+              <span class="ec-chk-sub">Condiciones econ&oacute;micas seg&uacute;n convenio (se muestra precio de referencia)</span>
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 4. Exenciones y bonificaciones -->
+      <div class="ec-block">
+        <div class="ec-block-title">Exenciones y bonificaciones</div>
+
+        <div class="ec-row">
+          <label class="ec-lbl" for="ec-discap">Discapacidad reconocida</label>
+          <select id="ec-discap">
+            <option value="">Sin discapacidad reconocida</option>
+            <option value="33">Grado &ge;&nbsp;33&nbsp;% &mdash; Exenci&oacute;n total (acad&eacute;micos + administrativos)</option>
+          </select>
+        </div>
+
+        <div class="ec-row">
+          <label class="ec-lbl" for="ec-familia">Familia numerosa / monoparental</label>
+          <select id="ec-familia">
+            <option value="">Sin t&iacute;tulo de familia numerosa ni monoparental</option>
+            <option value="fn-esp">Familia numerosa &mdash; Cat. Especial &middot; Exenci&oacute;n total</option>
+            <option value="fn-gen">Familia numerosa &mdash; Cat. General &middot; Bonificaci&oacute;n 50&nbsp;%</option>
+            <option value="mono-esp">Familia monoparental RM &mdash; Cat. Especial &middot; Exenci&oacute;n total</option>
+            <option value="mono-gen">Familia monoparental RM &mdash; Cat. General &middot; Bonificaci&oacute;n 50&nbsp;%</option>
+          </select>
+        </div>
+
+        <div class="ec-row">
+          <label class="ec-lbl" for="ec-financ">Beca o contrato de investigaci&oacute;n</label>
+          <select id="ec-financ">
+            <option value="">Sin beca ni contrato predoctoral activo</option>
+            <option value="beca">Solicitante de beca MEC &mdash; Aplazamiento del pago acad&eacute;mico</option>
+            <option value="predoc">Contrato predoctoral / FPU / FPI / S&eacute;neca &mdash; Pago aplazable</option>
+          </select>
+        </div>
+
+        <div class="ec-row">
+          <label class="ec-lbl" style="margin-bottom:7px">Otras circunstancias con exenci&oacute;n</label>
+          <div class="ec-checks">
+            <label class="ec-chk">
+              <input type="checkbox" id="ec-imv">
+              <span>
+                <span class="ec-chk-main">Beneficiario/a de Ingreso M&iacute;nimo Vital</span>
+                <span class="ec-chk-sub">Exenci&oacute;n de derechos acad&eacute;micos</span>
+              </span>
+            </label>
+            <label class="ec-chk">
+              <input type="checkbox" id="ec-vg">
+              <span>
+                <span class="ec-chk-main">V&iacute;ctima de violencia de g&eacute;nero</span>
+                <span class="ec-chk-sub">Exenci&oacute;n de derechos acad&eacute;micos</span>
+              </span>
+            </label>
+            <label class="ec-chk">
+              <input type="checkbox" id="ec-terror">
+              <span>
+                <span class="ec-chk-main">V&iacute;ctima del terrorismo (o c&oacute;nyuge / hijo/a)</span>
+                <span class="ec-chk-sub">Exenci&oacute;n total de derechos</span>
+              </span>
+            </label>
+            <label class="ec-chk">
+              <input type="checkbox" id="ec-huerfano">
+              <span>
+                <span class="ec-chk-main">Hu&eacute;rfano/a de funcionario fallecido en acto de servicio</span>
+                <span class="ec-chk-sub">Exenci&oacute;n total &mdash; solo primera matr&iacute;cula</span>
+              </span>
+            </label>
+            <label class="ec-chk">
+              <input type="checkbox" id="ec-operac">
+              <span>
+                <span class="ec-chk-main">Participante en operaciones internacionales de paz</span>
+                <span class="ec-chk-sub">Exenci&oacute;n total incluidas tasas administrativas</span>
+              </span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+
+    </div><!-- /ec-form -->
+
+    <!-- ══ RESULTADO ══ -->
+    <div class="ec-result">
+
+      <div class="ec-total-box">
+        <div class="lbl">Estimaci&oacute;n orientativa</div>
+        <div class="ec-total-num" id="ec-r-num">
+          <span class="euro">&euro;</span>&mdash;
+        </div>
+        <div class="ec-total-sub" id="ec-r-sub">Curso 2026/2027</div>
+      </div>
+
+      <div class="ec-ph" id="ec-r-ph">
+        <span class="ico">Escuela<br>de Doctorado</span>
+        <p>Completa el formulario<br>y pulsa <strong>Calcular</strong></p>
+        <p style="font-size:11px;margin-top:10px;line-height:1.6;color:var(--txt-t)">
+          El resultado es una <strong>estimaci&oacute;n orientativa</strong>.<br>
+          El importe definitivo lo recibir&aacute;s<br>
+          al ser admitido/a y formalizar la matr&iacute;cula.
+        </p>
+      </div>
+
+      <div class="ec-desglose" id="ec-r-dsg" style="display:none">
+        <ul class="dsg-list" id="ec-r-list"></ul>
+      </div>
+
+      <div class="ec-frac" id="ec-r-frac" style="display:none">
+        <h4>Pago fraccionado &middot; 8 plazos</h4>
+        <div class="frac-pills" id="ec-r-pills"></div>
+        <p class="frac-nota">1.er plazo incluye adm. y seguros. Requiere domiciliaci&oacute;n bancaria.</p>
+      </div>
+
+    </div><!-- /ec-result -->
+
+    <!-- Botón debajo del resultado, spanning ambas columnas -->
+    <div class="ec-btn-wrap">
+      <button class="ec-btn" id="ec-btn-calc">Calcular importe de matr&iacute;cula &rarr;</button>
+    </div>
+
+  </div><!-- /ec-body -->
+
+  <div class="ec-legal">
+    <strong>Estimaci&oacute;n orientativa.</strong>
+    El importe real de tu matr&iacute;cula lo recibir&aacute;s una vez admitido/a en el programa y al formalizar la matr&iacute;cula en la secretar&iacute;a. Precios basados en el
+    <strong>Decreto n.&ordm;&nbsp;8/2024 CARM</strong> (prorrogados para 2026/2027) y las Normas de Matr&iacute;cula UMU 2026/2027.
+    El seguro obligatorio (6,13&nbsp;&euro;) no es bonificable en ning&uacute;n caso.
+    La expedici&oacute;n del t&iacute;tulo de Doctor/a (215,00&nbsp;&euro;) se gestiona en tr&aacute;mite independiente.
+    &middot; <a href="https://www.um.es/web/eidum/informacion-academica/normativa-procedimientos"
+       target="_blank" rel="noopener">Normativa EIDUM</a>
+    &middot; <a href="https://www.um.es/web/estudios/matricula/doctorado"
+       target="_blank" rel="noopener">Matr&iacute;cula doctorado UMU</a>
+  </div>
+
+</div><!-- /ecalc-root -->
+
+<script>
+(function () {
+  "use strict";
+
+  /* ════════════════════════════════════════════════════════════
+     TABLA DE PRECIOS — hardcodeados
+     Fuente: Decreto n.º 8/2024 CARM, Anexo I (prorrogado 2026/2027)
+     ════════════════════════════════════════════════════════════ */
+  var P = {
+    TUTELA: 388.00,
+
+    ECTS: {
+      hab_prl:  16.78,  /* Habilitante Profesorado / PRL */
+      hab_abo:  16.78,  /* Habilitante Abogacia / Psic. Sanitaria */
+      stem_hab: 16.78,  /* STEM habilitante */
+      stem_no:  35.24,  /* STEM no habilitante / Bilingue */
+      no_hab:   37.11,  /* No habilitante general */
+      esp_exp:  46.97,  /* Especial experimentalidad */
+      esp_cos:  60.00   /* Especial coste */
+    },
+
+    /* ── Servicios administrativos de secretaria (Anexo B Normas Matricula 2026/27) ── */
+    /* Nuevo ingreso: apertura + compulsa + tarjeta de identidad (bloque conjunto) */
+    ADMIN_APERTURA_DETALLE: {
+      apertura:  27.50,   /* Apertura y gestion del expediente academico */
+      compulsa:  10.72,   /* Compulsa de documentos */
+      tarjeta:    7.90    /* Expedicion y duplicados de tarjeta de identidad */
+      /* TOTAL: 46.12 */
+    },
+    ADMIN_APERTURA: 46.12,  /* total nuevo ingreso (suma de los tres anteriores) */
+
+    /* Segunda y sucesivas matriculas */
+    ADMIN_GESTION:  18.00,  /* Gestion anual de expediente academico */
+
+    /* Examen de tesis doctoral (tasas de evaluacion) */
+    ADMIN_EXAMEN_TESIS: 144.22,
+
+    /* Expedicion del titulo de Doctor/a */
+    ADMIN_TITULO_DOCTOR: 215.00,
+
+    /* Seguros (nunca bonificables) */
+    SEG_OBL:  6.13,   /* Seguro obligatorio complementario */
+    SEG_ESC:  1.12,   /* Seguro escolar (menores de 28 anios) */
+
+    RECARGO_EXTRAN: 0.20  /* +20% sobre complementos, no residentes no comunitarios */
+  };
+
+  /* Textos informativos */
+  var AV = {
+    tutela:       "Precio fijo de <strong>388 \u20AC</strong> por tutela acad\u00E9mica anual. Se abona cada curso hasta el dep\u00F3sito de la tesis.",
+    defensa:      "La matr\u00EDcula de <strong>defensa de tesis</strong> incluye las tasas de evaluaci\u00F3n (examen de tesis: 144,22\u00A0\u20AC), la gesti\u00F3n anual de expediente (18,00\u00A0\u20AC) y los seguros. La <strong>expedici\u00F3n del t\u00EDtulo de Doctor/a</strong> (215,00\u00A0\u20AC) se abona en tr\u00E1mite separado.",
+    complementos: "Los complementos formativos de doctorado tributan al <strong>precio de 1.\u00AA matr\u00EDcula de m\u00E1ster</strong> seg\u00FAn el tipo de ense\u00F1anza al que pertenecen.",
+    tc:           "Matr\u00EDcula conjunta de <strong>tutela acad\u00E9mica</strong> (388\u00A0\u20AC) m\u00E1s los cr\u00E9ditos de <strong>complementos formativos</strong> al precio de m\u00E1ster correspondiente."
+  };
+
+  /* ── Helpers ───────────────────────────────────────────────── */
+  function g(id)    { return document.getElementById(id); }
+  function val(id)  { return g(id) ? g(id).value : ""; }
+  function chkd(id) { return g(id) ? g(id).checked : false; }
+
+  function fmt(n) {
+    return n.toLocaleString("es-ES", {
+      minimumFractionDigits: 2, maximumFractionDigits: 2
+    }) + "\u00A0\u20AC";
+  }
+  /* mul() evita que CKEditor de Liferay elimine el operador * al guardar */
+  function mul(a, b) { return a * b; }
+
+  /* ── Sección complementos: mostrar/ocultar + aviso ─────────── */
+  function actualizarSecComp() {
+    var v  = val("ec-tipo");
+    var sc = g("ec-sec-comp");
+    var av = g("ec-av-tipo");
+    if (!sc || !av) return;
+    sc.style.display = (v === "complementos" || v === "tc") ? "block" : "none";
+    if (v && AV[v]) { av.innerHTML = AV[v]; av.style.display = "block"; }
+    else             { av.style.display = "none"; }
+    actualizarPreviewComp();
+  }
+
+  /* ── Preview precio/ECTS y subtotal en tiempo real ─────────── */
+  function actualizarPreviewComp() {
+    var tipo  = val("ec-tipo");
+    var expV  = val("ec-exp");
+    var ects  = parseFloat(g("ec-ects") ? g("ec-ects").value : "") || 0;
+    var badge = g("ec-precio-ects");
+    var prev  = g("ec-comp-preview");
+    var pvLbl = g("ec-comp-preview-label");
+    var pvVal = g("ec-comp-preview-val");
+
+    if (tipo !== "complementos" && tipo !== "tc") return;
+
+    var pe = expV ? (P.ECTS[expV] || 0) : 0;
+
+    if (badge) badge.textContent = pe > 0 ? fmt(pe) : "\u2014";
+
+    if (!prev) return;
+    if (pe > 0 && ects > 0) {
+      var sub = mul(ects, pe);
+      var rec = chkd("ec-extran") ? mul(sub, P.RECARGO_EXTRAN) : 0;
+
+      var tot = sub + rec;
+      pvLbl.textContent = ects + "\u00A0ECTS \u00D7 " + fmt(pe)
+                        + (rec > 0 ? " + recargo 20\u00A0%" : "");
+      pvVal.textContent = fmt(tot);
+      prev.style.display = "flex";
+    } else {
+      prev.style.display = "none";
+    }
+  }
+
+  /* ── Cálculo principal ──────────────────────────────────────── */
+  function calcular() {
+    var tipo = val("ec-tipo");
+    if (!tipo) { alert("Selecciona el tipo de matr\u00EDcula."); return; }
+
+    var ects = 0, pe = 0;
+    if (tipo === "complementos" || tipo === "tc") {
+      var expV = val("ec-exp");
+      ects = parseFloat(g("ec-ects") ? g("ec-ects").value : "") || 0;
+      if (!expV)     { alert("Selecciona el tipo de m\u00E1ster para los complementos."); return; }
+      if (ects <= 0) { alert("Introduce el n\u00FAmero de cr\u00E9ditos ECTS."); return; }
+      pe = P.ECTS[expV] || 0;
+    }
+
+    /* Situación académica */
+    var nuevo    = chkd("ec-nuevo");
+    var menor28  = chkd("ec-menor28");
+    var extran   = chkd("ec-extran");
+    var cotutela = chkd("ec-cotutela");
+
+    /* Bonificaciones */
+    var discap   = val("ec-discap")  === "33";
+    var fnEsp    = val("ec-familia") === "fn-esp";
+    var fnGen    = val("ec-familia") === "fn-gen";
+    var monoEsp  = val("ec-familia") === "mono-esp";
+    var monoGen  = val("ec-familia") === "mono-gen";
+    var imv      = chkd("ec-imv");
+    var vg       = chkd("ec-vg");
+    var terror   = chkd("ec-terror");
+    var huerfano = chkd("ec-huerfano");
+    var operac   = chkd("ec-operac");
+    var beca     = val("ec-financ")  === "beca";
+    var predoc   = val("ec-financ")  === "predoc";
+
+    /* Jerarquía */
+    var exTot  = discap || fnEsp || monoEsp || terror || operac;
+    var exAcad = !exTot && (imv || vg || huerfano || beca || predoc);
+    var b50    = !exTot && !exAcad && (fnGen || monoGen);
+
+    /* Derechos académicos */
+    var acadTutela = 0, acadComp = 0, acadRec = 0;
+    if      (tipo === "tutela")       { acadTutela = P.TUTELA; }
+    else if (tipo === "defensa")      { acadTutela = 0; }
+    else if (tipo === "complementos") { acadComp = mul(ects, pe); }
+    else if (tipo === "tc")           { acadTutela = P.TUTELA; acadComp = mul(ects, pe); }
+
+    if (extran && acadComp > 0 && !exTot && !exAcad)
+      acadRec = mul(acadComp, P.RECARGO_EXTRAN);
+
+    var acadBase = acadTutela + acadComp + acadRec;
+    var acad = acadBase, descAcad = 0;
+
+    if (exTot || exAcad) { descAcad = acad; acad = 0; }
+    else if (b50)        { descAcad = acad / 2; acad = acad / 2; }
+
+    /* Derechos administrativos */
+    var adminBase  = nuevo ? P.ADMIN_APERTURA : P.ADMIN_GESTION;
+    var adminLabel = nuevo ? "Apertura de expediente acad\u00E9mico"
+                           : "Gesti\u00F3n anual de expediente";
+    var admin = adminBase;
+    if (exTot)    { admin = 0; }
+    else if (b50) { admin = admin / 2; }
+
+    /* Seguros */
+    var segObl = P.SEG_OBL;
+    var segEsc = menor28 ? P.SEG_ESC : 0;
+
+    var examenTesis = (tipo === "defensa" && !exTot) ? P.ADMIN_EXAMEN_TESIS : 0;
+    var total = acad + admin + examenTesis + segObl + segEsc;
+
+    /* ── Renderizar ── */
+    var list  = g("ec-r-list");
+    var pills = g("ec-r-pills");
+    if (!list || !pills) return;
+    list.innerHTML = ""; pills.innerHTML = "";
+
+    function li(label, amount, cls) {
+      var e = document.createElement("li");
+      if (cls) e.className = cls;
+      e.innerHTML = "<span class=\"dl\">" + label + "</span>"
+                  + "<span class=\"dr\">" + fmt(amount) + "</span>";
+      list.appendChild(e);
+    }
+    function liMsg(msg, cls) {
+      var e = document.createElement("li");
+      e.className = cls || "av-row";
+      e.innerHTML = "<span class=\"dl\">" + msg + "</span><span class=\"dr\"></span>";
+      list.appendChild(e);
+    }
+
+    if (acadTutela > 0) li("Tutela acad\u00E9mica", acadTutela);
+    if (tipo === "defensa") li("Derechos acad\u00E9micos (defensa)", 0);
+    if (acadComp > 0)
+      li(ects + "\u00A0ECTS \u00D7\u00A0" + fmt(pe) + " (complementos)", acadComp);
+    if (acadRec > 0)
+      li("Recargo extranjero no residente (+20\u00A0%)", acadRec);
+
+    if (descAcad > 0) {
+      var dl = b50      ? "Bonificaci\u00F3n 50\u00A0% (familia numerosa / monoparental general)"
+             : imv      ? "Exenci\u00F3n \u00B7 Ingreso M\u00EDnimo Vital"
+             : vg       ? "Exenci\u00F3n \u00B7 V\u00EDctima de violencia de g\u00E9nero"
+             : huerfano ? "Exenci\u00F3n \u00B7 Hu\u00E9rfano/a acto de servicio"
+             : beca     ? "Aplazamiento \u00B7 Beca MEC (matr\u00EDcula provisional)"
+             : predoc   ? "Aplazamiento \u00B7 Contrato predoctoral / FPU / FPI"
+             :            "Exenci\u00F3n total de derechos acad\u00E9micos y administrativos";
+      li("\u2212\u00A0" + dl, -descAcad, "bonif");
+    }
+
+    /* Desglose detallado de servicios administrativos */
+    if (nuevo) {
+      /* Nuevo ingreso: mostrar los tres conceptos por separado */
+      var apAp  = exTot ? 0 : (b50 ? P.ADMIN_APERTURA_DETALLE.apertura / 2 : P.ADMIN_APERTURA_DETALLE.apertura);
+      var apCo  = exTot ? 0 : (b50 ? P.ADMIN_APERTURA_DETALLE.compulsa / 2 : P.ADMIN_APERTURA_DETALLE.compulsa);
+      var apTa  = exTot ? 0 : (b50 ? P.ADMIN_APERTURA_DETALLE.tarjeta / 2  : P.ADMIN_APERTURA_DETALLE.tarjeta);
+      li("Apertura y gestión del expediente académico", apAp);
+      li("Compulsa de documentos", apCo);
+      li("Expedición de tarjeta de identidad universitaria", apTa);
+    } else {
+      li(adminLabel, admin);
+    }
+    /* Tasas de defensa (solo si es matricula de defensa) */
+    if (tipo === "defensa") {
+      var exTesis = exTot ? 0 : P.ADMIN_EXAMEN_TESIS;
+      li("Examen para tesis doctoral (tasas de evaluación)", exTesis);
+    }
+    li("Seguro obligatorio complementario", segObl);
+    if (segEsc > 0) li("Seguro escolar (menores de 28 años)", segEsc);
+
+    if (beca)     liMsg("\u26A0 Beca MEC: los derechos acad\u00E9micos se aplazar\u00E1n hasta la resoluci\u00F3n.", "av-row");
+    if (predoc)   liMsg("\u26A0 Contrato predoctoral: el pago acad\u00E9mico es aplazable seg\u00FAn la convocatoria.", "av-row");
+    if (cotutela) liMsg("\u2139 Cotutela: condiciones econ\u00F3micas sujetas al convenio bilateral.", "info-row");
+
+    li("Estimación total orientativa", total, "tot");
+    liMsg("ℹ El importe exacto se calculará una vez admitido/a y al formalizar la matrícula en la secretaría del programa.", "info-row");
+
+    /* Fraccionamiento */
+    if (acad > 0 && !beca && !predoc) {
+      var meses = ["Sep","Oct","Nov","Dic","Ene","Feb","Mar","Abr"];
+      var p8 = acad / 8;
+      for (var i = 0; i < 8; i++) {
+        var imp = (i === 0) ? (p8 + admin + examenTesis + segObl + segEsc) : p8;
+        var fp = document.createElement("div");
+        fp.className = "fp";
+        fp.innerHTML = "<div class=\"fp-v\">" + fmt(imp) + "</div>"
+                     + "<div class=\"fp-m\">" + meses[i] + "</div>";
+        pills.appendChild(fp);
+      }
+      g("ec-r-frac").style.display = "block";
+    } else {
+      g("ec-r-frac").style.display = "none";
+    }
+
+    /* Total prominente */
+    var t2 = total.toLocaleString("es-ES",
+      { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    g("ec-r-num").innerHTML =
+      "<span class=\"euro\">\u20AC</span>" + t2;
+
+    var tl = { tutela:"Tutela acad\u00E9mica", defensa:"Defensa de tesis",
+               complementos:"Complementos formativos", tc:"Tutela + complementos" };
+    g("ec-r-sub").textContent = (tl[tipo] || "") + " \u00B7 Curso 2026/2027";
+
+    g("ec-r-ph").style.display  = "none";
+    g("ec-r-dsg").style.display = "block";
+  }
+
+  /* ── Registrar eventos (compatible con carga asíncrona Liferay) */
+  function registrar() {
+    var elTipo   = g("ec-tipo");
+    var elExp    = g("ec-exp");
+    var elEcts   = g("ec-ects");
+    var elExtran = g("ec-extran");
+    var elBtn    = g("ec-btn-calc");
+
+    if (elTipo)   elTipo.addEventListener("change",  actualizarSecComp);
+    if (elExp)    elExp.addEventListener("change",   actualizarPreviewComp);
+    if (elEcts)   elEcts.addEventListener("input",   actualizarPreviewComp);
+    if (elExtran) elExtran.addEventListener("change",actualizarPreviewComp);
+    if (elBtn)    elBtn.addEventListener("click",    calcular);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", registrar);
+  } else {
+    registrar();
+  }
+
+})();
+</script>
